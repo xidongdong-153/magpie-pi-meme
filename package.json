@@ -1,0 +1,21 @@
+{
+  "name": "magpie-agent-pi-meme",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "description": "在 Pi meme 中使用 Magpie 网关的模型。",
+  "main": "./index.js",
+  "files": [
+    "README.md",
+    "agent.js",
+    "index.js"
+  ],
+  "magpie": {
+    "agent": "./agent.js"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "build": "node build.mjs",
+    "test": "node --import tsx --test tests/plugin.test.ts"
+  }
+}
