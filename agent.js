@@ -18,7 +18,7 @@ function connect({ gateway, models }) {
     const configured = {
       id: model.id,
       name: model.name?.trim() || model.id,
-      input: model.images ? ['text', 'image'] : ['text'],
+      input: model.images === false ? ['text'] : ['text', 'image'],
     }
     if (Number.isSafeInteger(model.context) && model.context > 0) configured.contextWindow = model.context
     if (Number.isSafeInteger(model.output) && model.output > 0) configured.maxTokens = model.output

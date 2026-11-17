@@ -9,7 +9,6 @@ import type {
   ModelConfigSnapshot,
   SaveModelProvider,
 } from '@pi-meme/contracts/model-config'
-import type { LocalHostStatus } from '@pi-meme/contracts/host-runtime'
 import type { Handoff } from './agent.js'
 
 type State = {
@@ -68,7 +67,7 @@ export class Bridge {
       url.username ||
       url.password
     )
-      throw new Error('本机试用插件只连接 127.0.0.1 上的 Pi meme Host')
+      throw new Error('本机插件只连接 127.0.0.1 上的 Pi meme Host')
     this.origin = url.origin
     this.handoffPath = path.join(directory, 'agent.json')
     this.statePath = path.join(directory, 'bridge-state.json')
@@ -87,7 +86,7 @@ export class Bridge {
       throw new Error('等待本机 Pi meme 启动，插件会自动重试')
     }
     if (!response.ok) {
-      if (response.status === 401) throw new Error('Pi meme 拒绝本机免令牌登录，请使用本机 Desktop Host')
+      if (response.status === 401) throw new Error('Pi meme 拒绝本机免令牌登录，请确认 Host 已开启本机自动登录')
       throw new Error(`Pi meme 返回 HTTP ${response.status}，插件会自动重试`)
     }
     return response
@@ -143,8 +142,18 @@ export class Bridge {
     if ((!handoff || !handoff.provider.models.length) && !previous)
       return { status: 'idle', message: handoff ? 'Magpie 暂时没有可同步的模型，请先配置供应商或账号' : undefined }
     const statusResponse = await this.response('/api/status')
-    const host = (await statusResponse.json()) as LocalHostStatus
-    if (host.product !== 'pi-meme' || host.runtimeProtocolVersion !== 1 || !host.hostId || !host.instanceId)
+    const host: unknown = await statusResponse.json()
+    if (
+      !object(host) ||
+      host.product !== 'pi-meme' ||
+      typeof host.hostId !== 'string' ||
+      !host.hostId ||
+      typeof host.instanceId !== 'string' ||
+      !host.instanceId ||
+      typeof host.dataRoot !== 'string' ||
+      !path.isAbsolute(host.dataRoot) ||
+      (host.owner !== 'desktop' && host.owner !== 'server')
+    )
       throw new Error('本机端口不是兼容的 Pi meme Host，未发送任何配置或密钥')
     if (previous && previous.hostId !== host.hostId) throw new Error('Pi meme Host 身份发生变化，已停止修改提供商')
     const signature = hash(JSON.stringify(handoff ?? null))
@@ -157,7 +166,7 @@ export class Bridge {
       clientId: 'magpie-pi-meme',
       fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(5000) }),
     }).catch(() => {
-      throw new Error('Pi meme 本机认证失败，请确认 Desktop Host 允许本机免令牌登录')
+      throw new Error('Pi meme 本机认证失败，请确认 Host 允许本机免令牌登录')
     })
     this.clientInstance = host.instanceId
     const rpc = async <T>(method: string, args: unknown[] = []): Promise<T> => {

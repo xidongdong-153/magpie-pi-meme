@@ -1,6 +1,6 @@
 {
   "name": "magpie-agent-pi-meme",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "在 Pi meme 中使用 Magpie 网关的模型。",

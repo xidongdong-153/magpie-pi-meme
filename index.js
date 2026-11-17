@@ -18,8 +18,40 @@ function createAppHostClient(transport) {
     return transport.call(method, args.slice(0, length), idempotencyKey)
   }
   return {
-    apiVersion: 2,
     models: { list: () => call('models.list', []) },
+    memory: {
+      status: () => call('memory.status', []),
+      configure: (patch, revision, options) => call('memory.configure', [patch, revision], options.idempotencyKey),
+      list: (query) => call('memory.list', [query]),
+      get: (id) => call('memory.get', [id]),
+      create: (input, epoch, options) => call('memory.create', [input, epoch], options.idempotencyKey),
+      update: (id, input, revision, options) => call('memory.update', [id, input, revision], options.idempotencyKey),
+      remove: (id, revision, options) => call('memory.remove', [id, revision], options.idempotencyKey),
+      clear: (revision, options) => call('memory.clear', [revision], options.idempotencyKey),
+      stop: (id, options) => call('memory.stop', [id], options.idempotencyKey),
+      retry: (id, options) => call('memory.retry', [id], options.idempotencyKey),
+    },
+    contextWindow: {
+      list: (ref, query) => call('contextWindow.list', [ref, query]),
+      get: (ref, id) => call('contextWindow.get', [ref, id]),
+      item: (ref, query) => call('contextWindow.item', [ref, query]),
+      reply: (ref, id) => call('contextWindow.reply', [ref, id]),
+      piece: (ref, query) => call('contextWindow.piece', [ref, query]),
+      image: (ref, query) => call('contextWindow.image', [ref, query]),
+    },
+    visualizations: {
+      list: (ref) => call('visualizations.list', [ref]),
+      get: (ref, reference) => call('visualizations.get', [ref, reference]),
+    },
+    imageLibrary: {
+      list: (input) => call('imageLibrary.list', [input]),
+      get: (id) => call('imageLibrary.get', [id]),
+      read: (id) => call('imageLibrary.read', [id]),
+      import: (input, options) => call('imageLibrary.import', [input], options.idempotencyKey),
+      upload: transport.uploadImage,
+      rename: (id, name, options) => call('imageLibrary.rename', [id, name], options.idempotencyKey),
+      remove: (id, options) => call('imageLibrary.remove', [id], options.idempotencyKey),
+    },
     imageGeneration: {
       getConfig: () => call('imageGeneration.getConfig', []),
       saveModel: (input) => call('imageGeneration.saveModel', [input]),
@@ -50,15 +82,25 @@ function createAppHostClient(transport) {
       list: () => call('projects.list', []),
       get: (ref) => call('projects.get', [ref]),
       register: (input, options) => call('projects.register', [input], options.idempotencyKey),
+      create: (input, options) => call('projects.create', [input], options.idempotencyKey),
+      rename: (ref, name, options) => call('projects.rename', [ref, name], options.idempotencyKey),
+      setPinned: (ref, pinned, options) => call('projects.setPinned', [ref, pinned], options.idempotencyKey),
+      deletePreview: (ref) => call('projects.deletePreview', [ref]),
+      delete: (ref, input, options) => call('projects.delete', [ref, input], options.idempotencyKey),
     },
     sessions: {
       create: (input, options) => call('sessions.create', [input], options.idempotencyKey),
       list: (input) => call('sessions.list', [input]),
       get: (ref) => call('sessions.get', [ref]),
+      attention: (ref) => call('sessions.attention', [ref]),
+      markRead: (ref, observed, options) => call('sessions.markRead', [ref, observed], options.idempotencyKey),
       snapshot: (ref) => call('sessions.snapshot', [ref]),
       history: (ref, input) => call('sessions.history', [ref, input]),
       messages: (ref, input) => call('sessions.messages', [ref, input]),
       message: (ref, input) => call('sessions.message', [ref, input]),
+      rename: (ref, name, options) => call('sessions.rename', [ref, name], options.idempotencyKey),
+      setPinned: (ref, pinned, options) => call('sessions.setPinned', [ref, pinned], options.idempotencyKey),
+      delete: (ref, options) => call('sessions.delete', [ref], options.idempotencyKey),
       configure: (ref, config, options) => call('sessions.configure', [ref, config], options.idempotencyKey),
       submit: (ref, input, options) => call('sessions.submit', [ref, input], options.idempotencyKey),
       stop: (ref, options) => call('sessions.stop', [ref], options.idempotencyKey),
@@ -83,6 +125,7 @@ function createAppHostClient(transport) {
       write: (ref, input, options) => call('files.write', [ref, input], options.idempotencyKey),
     },
     terminal: {
+      list: (root) => call('terminal.list', [root]),
       open: (ref, input, options) => call('terminal.open', [ref, input], options.idempotencyKey),
       attach: (ref) => call('terminal.attach', [ref]),
       input: (ref, data, options) => call('terminal.input', [ref, data], options.idempotencyKey),
@@ -90,7 +133,14 @@ function createAppHostClient(transport) {
       close: (ref, options) => call('terminal.close', [ref], options.idempotencyKey),
     },
     git: {
+      availability: (ref) => call('git.availability', [ref]),
+      turnChangeSummaries: (ref, entryIds) => call('git.turnChangeSummaries', [ref, entryIds]),
+      turnFile: (ref, entryId, path3) => call('git.turnFile', [ref, entryId, path3]),
+      undoTurn: (ref, entryId, options) => call('git.undoTurn', [ref, entryId], options.idempotencyKey),
       environment: (ref) => call('git.environment', [ref]),
+      review: (ref, query) => call('git.review', [ref, query]),
+      reviewFile: (ref, input) => call('git.reviewFile', [ref, input]),
+      reviewOptions: (ref, input) => call('git.reviewOptions', [ref, input]),
       snapshot: (ref) => call('git.snapshot', [ref]),
       diff: (ref, input) => call('git.diff', [ref, input]),
     },
@@ -130,7 +180,7 @@ async function createNodeHostClient(options) {
       !(baseUrl.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(baseUrl.hostname)))
   )
     throw new Error(
-      '\u8FDC\u7A0B Host \u5FC5\u987B\u4F7F\u7528\u4E0D\u542B\u8D26\u53F7\u4FE1\u606F\u7684 HTTPS \u5730\u5740',
+      '\u8FDC\u7A0B\u670D\u52A1\u5FC5\u987B\u4F7F\u7528\u4E0D\u542B\u8D26\u53F7\u4FE1\u606F\u7684 HTTPS \u5730\u5740',
     )
   let hostId = options.hostId
   let cookie = ''
@@ -146,13 +196,13 @@ async function createNodeHostClient(options) {
         headers: { 'Content-Type': 'application/json', Origin: baseUrl.origin },
         body: JSON.stringify({ token: options.token }),
       })
-      if (!response.ok) throw new Error('Host \u767B\u5F55\u5931\u8D25')
+      if (!response.ok) throw new Error('\u670D\u52A1\u767B\u5F55\u5931\u8D25')
       const identity = await response.json()
       if (!identity.hostId || (hostId && hostId !== identity.hostId))
-        throw new Error('Host \u8EAB\u4EFD\u5DF2\u53D8\u5316')
+        throw new Error('\u670D\u52A1\u8EAB\u4EFD\u5DF2\u53D8\u5316')
       hostId = identity.hostId
       cookie = response.headers.get('set-cookie')?.split(';')[0] ?? ''
-      if (!cookie) throw new Error('Host \u6CA1\u6709\u8FD4\u56DE\u8BA4\u8BC1 Cookie')
+      if (!cookie) throw new Error('\u670D\u52A1\u6CA1\u6709\u8FD4\u56DE\u8BA4\u8BC1 Cookie')
     })().finally(() => {
       authentication = void 0
     })
@@ -160,7 +210,7 @@ async function createNodeHostClient(options) {
   }
   await authenticate()
   async function call(pathname, input) {
-    if (disposed) throw new Error('Host \u5BA2\u6237\u7AEF\u5DF2\u5173\u95ED')
+    if (disposed) throw new Error('\u670D\u52A1\u5BA2\u6237\u7AEF\u5DF2\u5173\u95ED')
     const body = JSON.stringify({ ...input, hostId, clientId: options.clientId })
     const send = () =>
       request(new URL(pathname, options.url), {
@@ -172,22 +222,24 @@ async function createNodeHostClient(options) {
     let response = await send()
     if (response.status === 401) {
       await authenticate()
-      if (disposed) throw new Error('Host \u5BA2\u6237\u7AEF\u5DF2\u5173\u95ED')
+      if (disposed) throw new Error('\u670D\u52A1\u5BA2\u6237\u7AEF\u5DF2\u5173\u95ED')
       response = await send()
     }
     const value = await response.json()
     if (!response.ok) {
       const error = value.error
-      throw new Error(typeof error === 'string' ? error : `Host \u8BF7\u6C42\u5931\u8D25\uFF1A${response.status}`)
+      throw new Error(
+        typeof error === 'string' ? error : `\u670D\u52A1\u8BF7\u6C42\u5931\u8D25\uFF1A${response.status}`,
+      )
     }
-    if (value.hostId !== hostId) throw new Error('Host \u8EAB\u4EFD\u5DF2\u53D8\u5316')
+    if (value.hostId !== hostId) throw new Error('\u670D\u52A1\u8EAB\u4EFD\u5DF2\u53D8\u5316')
     if (pathname === '/api/rpc' && (!('requestId' in value) || value.requestId !== input.requestId))
-      throw new Error('Host \u8FD4\u56DE\u4E86\u4E0D\u5339\u914D\u7684\u8BF7\u6C42\u6807\u8BC6')
+      throw new Error('\u670D\u52A1\u8FD4\u56DE\u4E86\u4E0D\u5339\u914D\u7684\u8BF7\u6C42\u6807\u8BC6')
     if (value.error) throw Object.assign(new Error(value.error.message), { code: value.error.code })
     return value.result
   }
   const api = createAppHostClient({
-    call: (method, args, idempotencyKey) => call('/api/control', { apiVersion: 2, method, args, idempotencyKey }),
+    call: (method, args, idempotencyKey) => call('/api/control', { method, args, idempotencyKey }),
     async subscribe(input, listener) {
       const webSocket = options.webSocket
       if (!webSocket) throw new Error('\u6B64 Node \u5BA2\u6237\u7AEF\u672A\u914D\u7F6E WebSocket')
@@ -299,7 +351,7 @@ var Bridge = class {
       url.username ||
       url.password
     )
-      throw new Error('\u672C\u673A\u8BD5\u7528\u63D2\u4EF6\u53EA\u8FDE\u63A5 127.0.0.1 \u4E0A\u7684 Pi meme Host')
+      throw new Error('\u672C\u673A\u63D2\u4EF6\u53EA\u8FDE\u63A5 127.0.0.1 \u4E0A\u7684 Pi meme Host')
     this.origin = url.origin
     this.handoffPath = path.join(directory, 'agent.json')
     this.statePath = path.join(directory, 'bridge-state.json')
@@ -326,7 +378,7 @@ var Bridge = class {
     if (!response.ok) {
       if (response.status === 401)
         throw new Error(
-          'Pi meme \u62D2\u7EDD\u672C\u673A\u514D\u4EE4\u724C\u767B\u5F55\uFF0C\u8BF7\u4F7F\u7528\u672C\u673A Desktop Host',
+          'Pi meme \u62D2\u7EDD\u672C\u673A\u514D\u4EE4\u724C\u767B\u5F55\uFF0C\u8BF7\u786E\u8BA4 Host \u5DF2\u5F00\u542F\u672C\u673A\u81EA\u52A8\u767B\u5F55',
         )
       throw new Error(`Pi meme \u8FD4\u56DE HTTP ${response.status}\uFF0C\u63D2\u4EF6\u4F1A\u81EA\u52A8\u91CD\u8BD5`)
     }
@@ -397,7 +449,17 @@ var Bridge = class {
       }
     const statusResponse = await this.response('/api/status')
     const host = await statusResponse.json()
-    if (host.product !== 'pi-meme' || host.runtimeProtocolVersion !== 1 || !host.hostId || !host.instanceId)
+    if (
+      !object(host) ||
+      host.product !== 'pi-meme' ||
+      typeof host.hostId !== 'string' ||
+      !host.hostId ||
+      typeof host.instanceId !== 'string' ||
+      !host.instanceId ||
+      typeof host.dataRoot !== 'string' ||
+      !path.isAbsolute(host.dataRoot) ||
+      (host.owner !== 'desktop' && host.owner !== 'server')
+    )
       throw new Error(
         '\u672C\u673A\u7AEF\u53E3\u4E0D\u662F\u517C\u5BB9\u7684 Pi meme Host\uFF0C\u672A\u53D1\u9001\u4EFB\u4F55\u914D\u7F6E\u6216\u5BC6\u94A5',
       )
@@ -416,7 +478,7 @@ var Bridge = class {
       fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(5e3) }),
     }).catch(() => {
       throw new Error(
-        'Pi meme \u672C\u673A\u8BA4\u8BC1\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4 Desktop Host \u5141\u8BB8\u672C\u673A\u514D\u4EE4\u724C\u767B\u5F55',
+        'Pi meme \u672C\u673A\u8BA4\u8BC1\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4 Host \u5141\u8BB8\u672C\u673A\u514D\u4EE4\u724C\u767B\u5F55',
       )
     })
     this.clientInstance = host.instanceId
